@@ -123,9 +123,10 @@ static int state_reserved_local(nghttp2_session *session,
  */
 static int session_is_new_peer_stream_id(nghttp2_session *session,
                                          int32_t stream_id) {
+  nghttp2_stream *stream = nghttp2_session_get_stream(session, stream_id);
   return stream_id != 0 &&
-         !nghttp2_session_is_my_stream_id(session, stream_id) &&
-         session->last_recv_stream_id < stream_id;
+         !nghttp2_session_is_my_stream_id(session, stream_id) && (stream == NULL || stream->state == NGHTTP2_STREAM_IDLE);// &&
+         //session->last_recv_stream_id < stream_id;  /* this isn't compatible with unordered transports: is it in the spec? */
 }
 
 static int session_detect_idle_stream(nghttp2_session *session,
@@ -214,7 +215,7 @@ static int session_terminate_session(nghttp2_session *session,
   int rv;
   const uint8_t *debug_data;
   size_t debug_datalen;
-
+  
   if (session->goaway_flags & NGHTTP2_GOAWAY_TERM_ON_SEND) {
     return 0;
   }
@@ -2966,6 +2967,7 @@ static ssize_t nghttp2_session_mem_send_internal(nghttp2_session *session,
 
       nghttp2_bufs_rewind(framebufs);
 
+      int before_frame_cb_rv = session_call_before_frame_send(session, &item->frame);
       if (item->frame.hd.type != NGHTTP2_DATA) {
         nghttp2_frame *frame;
 
@@ -2976,7 +2978,7 @@ static ssize_t nghttp2_session_mem_send_internal(nghttp2_session *session,
                frame->hd.length, frame->hd.type, frame->hd.flags,
                frame->hd.stream_id);
 
-        rv = session_call_before_frame_send(session, frame);
+        rv = before_frame_cb_rv;
         if (nghttp2_is_fatal(rv)) {
           return rv;
         }
@@ -3780,6 +3782,7 @@ int nghttp2_session_on_request_headers_received(nghttp2_session *session,
                                                 nghttp2_frame *frame) {
   int rv = 0;
   nghttp2_stream *stream;
+    
   if (frame->hd.stream_id == 0) {
     return session_inflate_handle_invalid_connection(
         session, frame, NGHTTP2_ERR_PROTO, "request HEADERS: stream_id == 0");
@@ -3794,7 +3797,6 @@ int nghttp2_session_on_request_headers_received(nghttp2_session *session,
           session, frame, NGHTTP2_ERR_PROTO,
           "request HEADERS: client received request");
     }
-
     return NGHTTP2_ERR_IGN_HEADER_BLOCK;
   }
 
@@ -3833,7 +3835,6 @@ int nghttp2_session_on_request_headers_received(nghttp2_session *session,
       return session_inflate_handle_invalid_connection(
           session, frame, NGHTTP2_ERR_STREAM_CLOSED, "HEADERS: stream closed");
     }
-
     return NGHTTP2_ERR_IGN_HEADER_BLOCK;
   }
   session->last_recv_stream_id = frame->hd.stream_id;
@@ -4008,6 +4009,7 @@ static int session_process_headers_frame(nghttp2_session *session) {
   nghttp2_frame *frame = &iframe->frame;
   nghttp2_stream *stream;
 
+  
   rv = nghttp2_frame_unpack_headers_payload(&frame->headers, iframe->sbuf.pos);
 
   if (rv != 0) {
@@ -4526,7 +4528,7 @@ int nghttp2_session_on_push_promise_received(nghttp2_session *session,
   nghttp2_stream *stream;
   nghttp2_stream *promised_stream;
   nghttp2_priority_spec pri_spec;
-
+  
   if (frame->hd.stream_id == 0) {
     return session_inflate_handle_invalid_connection(
         session, frame, NGHTTP2_ERR_PROTO, "PUSH_PROMISE: stream_id == 0");
@@ -4561,6 +4563,7 @@ int nghttp2_session_on_push_promise_received(nghttp2_session *session,
         session, frame, NGHTTP2_ERR_PROTO, "PUSH_PROMISE: stream in idle");
   }
 
+  
   session->last_recv_stream_id = frame->push_promise.promised_stream_id;
   stream = nghttp2_session_get_stream(session, frame->hd.stream_id);
   if (!stream || stream->state == NGHTTP2_STREAM_CLOSING ||
@@ -5505,7 +5508,7 @@ ssize_t nghttp2_session_mem_recv(nghttp2_session *session, const uint8_t *in,
         }
 
         on_begin_frame_called = 1;
-
+                
         rv = session_process_headers_frame(session);
         if (nghttp2_is_fatal(rv)) {
           return rv;
