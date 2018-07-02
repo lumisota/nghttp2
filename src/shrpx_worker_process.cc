@@ -26,7 +26,7 @@
 
 #include <sys/types.h>
 #ifdef HAVE_UNISTD_H
-#include <unistd.h>
+#  include <unistd.h>
 #endif // HAVE_UNISTD_H
 #include <sys/resource.h>
 #include <sys/wait.h>
@@ -114,12 +114,10 @@ void graceful_shutdown(ConnectionHandler *conn_handler) {
 
   conn_handler->set_graceful_shutdown(true);
 
-  conn_handler->disable_acceptor();
-
-  // After disabling accepting new connection, dispatch incoming
-  // connection in backlog.
-
+  // TODO What happens for the connections not established in the
+  // kernel?
   conn_handler->accept_pending_connection();
+  conn_handler->delete_acceptor();
 
   conn_handler->graceful_shutdown_worker();
 

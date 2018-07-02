@@ -25,30 +25,30 @@
 #include "util.h"
 
 #ifdef HAVE_TIME_H
-#include <time.h>
+#  include <time.h>
 #endif // HAVE_TIME_H
 #include <sys/types.h>
 #ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
+#  include <sys/socket.h>
 #endif // HAVE_SYS_SOCKET_H
 #ifdef HAVE_NETDB_H
-#include <netdb.h>
+#  include <netdb.h>
 #endif // HAVE_NETDB_H
 #include <sys/stat.h>
 #ifdef HAVE_FCNTL_H
-#include <fcntl.h>
+#  include <fcntl.h>
 #endif // HAVE_FCNTL_H
 #ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
+#  include <netinet/in.h>
 #endif // HAVE_NETINET_IN_H
 #ifdef _WIN32
-#include <ws2tcpip.h>
-#include <boost/date_time/posix_time/posix_time.hpp>
+#  include <ws2tcpip.h>
+#  include <boost/date_time/posix_time/posix_time.hpp>
 #else // !_WIN32
-#include <netinet/tcp.h>
+#  include <netinet/tcp.h>
 #endif // !_WIN32
 #ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
+#  include <arpa/inet.h>
 #endif // HAVE_ARPA_INET_H
 
 #include <cmath>
@@ -70,12 +70,19 @@ namespace nghttp2 {
 
 namespace util {
 
-#ifdef _WIN32
+#ifndef _WIN32
+namespace {
+int nghttp2_inet_pton(int af, const char *src, void *dst) {
+  return inet_pton(af, src, dst);
+}
+} // namespace
+#else // _WIN32
+namespace {
 // inet_pton-wrapper for Windows
-static int inet_pton(int af, const char *src, void *dst) {
-#if _WIN32_WINNT >= 0x0600
+int nghttp2_inet_pton(int af, const char *src, void *dst) {
+#  if _WIN32_WINNT >= 0x0600
   return InetPtonA(af, src, dst);
-#else
+#  else
   // the function takes a 'char*', so we need to make a copy
   char addr[INET6_ADDRSTRLEN + 1];
   strncpy(addr, src, sizeof(addr));
@@ -86,8 +93,9 @@ static int inet_pton(int af, const char *src, void *dst) {
   if (WSAStringToAddress(addr, af, NULL, (LPSOCKADDR)dst, &size) == 0)
     return 1;
   return 0;
-#endif
+#  endif
 }
+} // namespace
 #endif // _WIN32
 
 const char UPPER_XDIGITS[] = "0123456789ABCDEF";
@@ -407,6 +415,15 @@ time_t parse_http_date(const StringRef &s) {
 #endif // !_WIN32
 }
 
+time_t parse_openssl_asn1_time_print(const StringRef &s) {
+  tm tm{};
+  auto r = strptime(s.c_str(), "%b %d %H:%M:%S %Y GMT", &tm);
+  if (r == nullptr) {
+    return 0;
+  }
+  return nghttp2_timegm_without_yday(&tm);
+}
+
 char upcase(char c) {
   if ('a' <= c && c <= 'z') {
     return c - 'a' + 'A';
@@ -653,7 +670,7 @@ bool numeric_host(const char *hostname, int family) {
   int rv;
   std::array<uint8_t, sizeof(struct in6_addr)> dst;
 
-  rv = inet_pton(family, hostname, dst.data());
+  rv = nghttp2_inet_pton(family, hostname, dst.data());
 
   return rv == 1;
 }
@@ -950,7 +967,7 @@ int get_socket_error(int fd) {
 
 bool ipv6_numeric_addr(const char *host) {
   uint8_t dst[16];
-  return inet_pton(AF_INET6, host, dst) == 1;
+  return nghttp2_inet_pton(AF_INET6, host, dst) == 1;
 }
 
 namespace {

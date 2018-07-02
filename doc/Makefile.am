@@ -143,6 +143,7 @@ APIDOCS= \
 	nghttp2_session_set_local_window_size.rst \
 	nghttp2_session_set_next_stream_id.rst \
 	nghttp2_session_set_stream_user_data.rst \
+	nghttp2_session_set_user_data.rst \
 	nghttp2_session_terminate_session.rst \
 	nghttp2_session_terminate_session2.rst \
 	nghttp2_session_upgrade.rst \
@@ -163,6 +164,7 @@ APIDOCS= \
 	nghttp2_submit_extension.rst \
 	nghttp2_submit_goaway.rst \
 	nghttp2_submit_headers.rst \
+	nghttp2_submit_origin.rst \
 	nghttp2_submit_ping.rst \
 	nghttp2_submit_priority.rst \
 	nghttp2_submit_push_promise.rst \

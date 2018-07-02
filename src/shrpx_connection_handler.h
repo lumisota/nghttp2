@@ -29,7 +29,7 @@
 
 #include <sys/types.h>
 #ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
+#  include <sys/socket.h>
 #endif // HAVE_SYS_SOCKET_H
 
 #include <mutex>
@@ -37,7 +37,7 @@
 #include <vector>
 #include <random>
 #ifndef NOTHREADS
-#include <future>
+#  include <future>
 #endif // NOTHREADS
 
 #include <openssl/ssl.h>
@@ -45,7 +45,7 @@
 #include <ev.h>
 
 #ifdef HAVE_NEVERBLEED
-#include <neverbleed.h>
+#  include <neverbleed.h>
 #endif // HAVE_NEVERBLEED
 
 #include "shrpx_downstream_connection_pool.h"
@@ -117,6 +117,7 @@ public:
   struct ev_loop *get_loop() const;
   Worker *get_single_worker() const;
   void add_acceptor(std::unique_ptr<AcceptHandler> h);
+  void delete_acceptor();
   void enable_acceptor();
   void disable_acceptor();
   void sleep_acceptor(ev_tstamp t);

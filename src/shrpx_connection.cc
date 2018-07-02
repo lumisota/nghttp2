@@ -25,7 +25,7 @@
 #include "shrpx_connection.h"
 
 #ifdef HAVE_UNISTD_H
-#include <unistd.h>
+#  include <unistd.h>
 #endif // HAVE_UNISTD_H
 #include <netinet/tcp.h>
 
@@ -44,13 +44,13 @@ using namespace nghttp2;
 
 namespace shrpx {
 
-#if !OPENSSL_1_1_API
+#if !LIBRESSL_2_7_API && !OPENSSL_1_1_API
 
 void *BIO_get_data(BIO *bio) { return bio->ptr; }
 void BIO_set_data(BIO *bio, void *ptr) { bio->ptr = ptr; }
 void BIO_set_init(BIO *bio, int init) { bio->init = init; }
 
-#endif // !OPENSSL_1_1_API
+#endif // !LIBRESSL_2_7_API && !OPENSSL_1_1_API
 
 Connection::Connection(struct ev_loop *loop, int fd, SSL *ssl,
                        MemchunkPool *mcpool, ev_tstamp write_timeout,
@@ -523,7 +523,9 @@ int Connection::check_http2_requirement() {
   const unsigned char *next_proto = nullptr;
   unsigned int next_proto_len;
 
+#ifndef OPENSSL_NO_NEXTPROTONEG
   SSL_get0_next_proto_negotiated(tls.ssl, &next_proto, &next_proto_len);
+#endif // !OPENSSL_NO_NEXTPROTONEG
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L
   if (next_proto == nullptr) {
     SSL_get0_alpn_selected(tls.ssl, &next_proto, &next_proto_len);
@@ -815,11 +817,11 @@ int Connection::get_tcp_hint(TCPHint *hint) const {
   // For TLSv1.3, AES-GCM and CHACHA20_POLY1305 overhead are now 22
   // bytes (5 (header) + 1 (ContentType) + 16 (tag)).
   size_t tls_overhead;
-#ifdef TLS1_3_VERSION
+#  ifdef TLS1_3_VERSION
   if (SSL_version(tls.ssl) == TLS1_3_VERSION) {
     tls_overhead = 22;
   } else
-#endif // TLS1_3_VERSION
+#  endif // TLS1_3_VERSION
   {
     tls_overhead = 29;
   }

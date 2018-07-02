@@ -28,11 +28,11 @@
 #include "nghttp2_config.h"
 
 #ifdef HAVE_UNISTD_H
-#include <unistd.h>
+#  include <unistd.h>
 #endif // HAVE_UNISTD_H
 #include <getopt.h>
 #ifdef HAVE_NETDB_H
-#include <netdb.h>
+#  include <netdb.h>
 #endif // HAVE_NETDB_H
 
 #include <cmath>
@@ -195,6 +195,11 @@ std::string iso8601_date(int64_t ms);
 char *iso8601_date(char *res, int64_t ms);
 
 time_t parse_http_date(const StringRef &s);
+
+// Parses time formatted as "MMM DD HH:MM:SS YYYY [GMT]" (e.g., Feb 3
+// 00:55:52 2015 GMT), which is specifically used by OpenSSL
+// ASN1_TIME_print().
+time_t parse_openssl_asn1_time_print(const StringRef &s);
 
 char upcase(char c);
 
